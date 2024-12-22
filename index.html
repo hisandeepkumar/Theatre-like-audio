@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Concert-Like Audio Effect</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #222;
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+    }
+
+    h1 {
+      margin-bottom: 20px;
+    }
+
+    .upload-section {
+      margin-bottom: 20px;
+    }
+
+    button {
+      margin-top: 20px;
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+      background-color: #f39c12;
+      border: none;
+      color: #fff;
+      border-radius: 5px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Concert-Like Audio Effect</h1>
+  <div class="upload-section">
+    <label for="fileInput">Upload Music:</label>
+    <input type="file" id="fileInput" accept="audio/*">
+  </div>
+  <button id="playButton" disabled>Play with Effects</button>
+  <script>
+    const fileInput = document.getElementById('fileInput');
+    const playButton = document.getElementById('playButton');
+
+    let audioContext, source, convolver, gainNode, audioBuffer;
+
+    // Load an impulse response file for reverb
+    async function loadReverb(audioContext) {
+      const response = await fetch('https://cdn.jsdelivr.net/gh/openai-assets/concert-hall-impulse-response.wav');
+      const arrayBuffer = await response.arrayBuffer();
+      return await audioContext.decodeAudioData(arrayBuffer);
+    }
+
+    // Initialize Web Audio API
+    async function setupAudio(file) {
+      audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+      // Decode uploaded audio file
+      const fileReader = new FileReader();
+      fileReader.readAsArrayBuffer(file);
+      fileReader.onload = async () => {
+        const audioData = fileReader.result;
+        audioBuffer = await audioContext.decodeAudioData(audioData);
+
+        // Enable play button after setup
+        playButton.disabled = false;
+      };
+    }
+
+    // Play audio with effects
+    async function playAudio() {
+      if (!audioBuffer) return;
+
+      // Create audio source
+      source = audioContext.createBufferSource();
+      source.buffer = audioBuffer;
+
+      // Create reverb effect
+      convolver = audioContext.createConvolver();
+      convolver.buffer = await loadReverb(audioContext);
+
+      // Create gain node for volume adjustment
+      gainNode = audioContext.createGain();
+      gainNode.gain.value = 1.2;
+
+      // Connect nodes: source -> convolver -> gain -> destination
+      source.connect(convolver);
+      convolver.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+
+      // Play audio
+      source.start();
+    }
+
+    // Handle file upload
+    fileInput.addEventListener('change', (event) => {
+      const file = event.target.files[0];
+      if (file) {
+        setupAudio(file);
+      }
+    });
+
+    // Handle play button click
+    playButton.addEventListener('click', () => {
+      playAudio();
+    });
+  </script>
+</body>
+</html>
